@@ -1,9 +1,9 @@
-use std::fmt::{Debug};
+use std::{fmt::Debug};
 
 use super::types::*;
 
 #[derive(Debug)]
-struct Intersection{
+pub struct Intersection{
     pub point: Point,
     pub scale_factor: f64
 }
@@ -42,6 +42,22 @@ fn section_point( ray: &Line, line: &Line ) -> Result<Intersection, CalcError> {
   });
 }
 
+pub fn closest_section( ray: &Line, lines: &Vec<Line>) -> Option<Intersection> {
+    let mut intersection: Option<Intersection> = None;
+    
+    for line in lines {
+        let i = section_point(ray, line);
+        if i.is_ok() {
+            let iv = i.unwrap();
+            if intersection.is_none() ||  iv.scale_factor < intersection.as_ref().unwrap().scale_factor {
+                intersection = Some(iv);
+            }
+        }
+    };
+
+    return intersection
+}
+
 #[cfg(test)]
 
 
@@ -73,5 +89,24 @@ use super::*;
         assert!(error.msg == "Ray missing Element");
 
 
+    }
+
+    #[test]
+    fn find_closest_section(){
+        let lines = vec!(
+            Line::from_coords(0.0, 1.0, 1.0, 1.0),
+            Line::from_coords(0.0, 1.5, 1.0, 2.0)
+        );
+
+        let r1 = Line::from_coords(0.5, 0.0, 0.5, 0.5);
+
+        let i = closest_section(&r1, &lines).expect("No point returned!");
+        assert!(i.point.x == 0.5);
+        println!("Intersection point {},{}", i.point.x, i.point.y);
+        assert!(i.point.y == 1.0);
+
+        let r2 = Line::from_coords(0.5, 0.0, 10.0, 0.2);
+
+        assert!(closest_section(&r2, &lines).is_none());
     }
 }
