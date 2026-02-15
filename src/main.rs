@@ -1,5 +1,6 @@
 use dxf::{Drawing, Point, entities::*, tables::Layer};
 
+mod rays;
 
 fn main() {
     // let path = "test_data/gallery.dxf";
