@@ -1,4 +1,6 @@
-use std::{fmt::Debug};
+use std::{collections::HashSet, fmt::Debug};
+
+use ordered_float::OrderedFloat;
 
 use super::types::*;
 
@@ -14,12 +16,12 @@ fn section_point( ray: &Line, line: &Line ) -> Option<Intersection> {
 
     let d = (ray.b.x - ray.a.x) * (line.b.y - line.b.y) - (line.b.x - line.a.x) * (ray.b.y - ray.a.y);
     let r = ((line.b.x - line.a.x) * (ray.a.y - line.a.y) - (ray.a.x - line.a.x) * (line.b.y - line.a.y)) / d;
-    if (r + EPSILON) < 0.0 { 
+    if (r + EPSILON) < OrderedFloat::from(0.0) { 
         return None;
     }
 
     let s = ((line.a.x - ray.a.x) * (ray.b.y - ray.a.y) - (ray.b.x - ray.a.x) * (line.a.y - ray.a.y)) / d;
-    if (s + EPSILON) < 0.0 || (s - EPSILON) > 1.0 {
+    if (s + EPSILON).into_inner() < 0.0 || (s - EPSILON).into_inner() > 1.0 {
         return None;
     }
 
@@ -28,7 +30,7 @@ fn section_point( ray: &Line, line: &Line ) -> Option<Intersection> {
   	x: s * (line.b.x - line.a.x) + line.a.x, 
     y: s * (line.b.y - line.a.y) + line.a.y,
     },
-    scale_factor: r,
+    scale_factor: r.into_inner(),
   });
 }
 
@@ -48,6 +50,22 @@ pub fn closest_section( ray: &Line, lines: &Vec<Line>) -> Option<Intersection> {
     return intersection
 }
 
+pub fn closest_intersections_to_all_vertices( point: &Point, lines: &Vec<Line>) -> Vec<Intersection> {
+    let mut results = Vec::<Intersection>::new();
+    let mut seen_points = HashSet::new();
+    for line in lines {
+        if seen_points.insert(line.a) {
+            if let Some(intersection) = closest_section(&Line::from_points(point, &line.a), lines) {
+                results.push(intersection);
+            }
+        }
+        if let Some(intersection) = closest_section(&Line::from_points(point, &line.b), lines) {
+            results.push(intersection);
+        }
+    }
+    return results;
+}
+
 #[cfg(test)]
 
 
@@ -56,8 +74,8 @@ use super::*;
 
     #[test]
     fn test_section_point(){
-        let l = Line{ a: Point{ x: 1.0, y: 1.0}, b: Point{x: 0.0, y: 1.0} };
-        let r = Line{ a: Point{ x: 0.5, y: 0.0}, b: Point{x: 0.5, y: 1.5} };
+        let l = Line{ a: Point::new(1.0, 1.0), b: Point::new(0.0, 1.0) };
+        let r = Line{ a: Point::new( 0.5, 0.0), b: Point::new(0.5,1.5 )};
 
         let intersection = section_point(&r, &l).expect("Calculation failed");
         assert!(intersection.point.x == 0.5);
@@ -68,8 +86,8 @@ use super::*;
 
     #[test]
     fn test_invalid_sections(){
-        let l = Line{ a: Point{ x: 1.0, y: 1.0}, b: Point{x: 0.0, y: 1.0} };
-        let r = Line{ a: Point{ x: 0.5, y: 0.5}, b: Point{x: 0.5, y: 0.0} };
+        let l = Line{ a: Point::new( 1.0, 1.0), b: Point::new( 0.0, 1.0) };
+        let r = Line{ a: Point::new( 0.5, 0.5), b: Point::new( 0.5, 0.0) };
 
         assert!(section_point(&r, &l).is_none());
 
@@ -94,5 +112,11 @@ use super::*;
         let r2 = Line::from_coords(0.5, 0.0, 10.0, 0.2);
 
         assert!(closest_section(&r2, &lines).is_none());
+    }
+
+    #[test]
+    fn find_closest_intersection_to_all_vertices(){
+        // Simple case - in a square, that's just the corners
+
     }
 }

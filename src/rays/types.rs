@@ -1,20 +1,25 @@
+use ordered_float::OrderedFloat;
 
 #[derive(Debug, Copy)]
 #[derive(Clone)]
+#[derive(Eq,PartialEq,Hash)]
 pub struct Point {
-    pub x: f64,
-    pub y: f64
+    pub x: OrderedFloat<f64>,
+    pub y: OrderedFloat<f64>
+}
+
+impl Point {
+    pub fn new( x: f64, y:f64 ) -> Point {
+        Point{
+            x: OrderedFloat::from(x),
+            y: OrderedFloat::from(y)
+        }
+    }
 }
 
 pub trait LineConstructor { 
     fn from_points( a: &Point, b: &Point ) -> Line;
     fn from_coords( x1: f64, y1: f64, x2: f64, y2: f64) -> Line;
-}
-
-impl Point {
-    pub fn new( x: f64, y: f64) -> Point {
-        Point{ x: x, y: y}
-    }
 }
 
 #[derive(Debug)]
@@ -29,7 +34,7 @@ impl LineConstructor for Line{
     }
 
     fn from_coords( x1: f64, y1: f64, x2: f64, y2: f64 ) -> Line {
-        Line{ a: Point{ x: x1, y: y1 }, b: Point{ x: x2, y:y2 }}
+        Line{ a: Point::new( x1, y1 ), b: Point::new( x2, y2 )}
     }
 }
 

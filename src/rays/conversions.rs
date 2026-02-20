@@ -16,7 +16,7 @@ impl Error for ConversionError {
 }
 
 fn point_to_dxf( p: &Point ) -> dxf::Point {
-    dxf::Point::new(p.x, p.y, 0.0)
+    dxf::Point::new(p.x.into_inner(), p.y.into_inner(), 0.0)
 }
 
 fn point_from_dxf( p : &dxf::Point) -> Point {
