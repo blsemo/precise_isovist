@@ -14,7 +14,7 @@ const EPSILON: f64 = 0.000001;
 
 fn section_point( ray: &Line, line: &Line ) -> Option<Intersection> {
 
-    let d = (ray.b.x - ray.a.x) * (line.b.y - line.b.y) - (line.b.x - line.a.x) * (ray.b.y - ray.a.y);
+    let d = (ray.b.x - ray.a.x) * (line.b.y - line.a.y) - (line.b.x - line.a.x) * (ray.b.y - ray.a.y);
     let r = ((line.b.x - line.a.x) * (ray.a.y - line.a.y) - (ray.a.x - line.a.x) * (line.b.y - line.a.y)) / d;
     if (r + EPSILON) < OrderedFloat::from(0.0) { 
         return None;
@@ -39,8 +39,7 @@ pub fn closest_section( ray: &Line, lines: &Vec<Line>) -> Option<Intersection> {
     
     for line in lines {
         let i = section_point(ray, line);
-        if i.is_some() {
-            let iv = i.unwrap();
+        if let Some(iv) = i {
             if intersection.is_none() ||  iv.scale_factor < intersection.as_ref().unwrap().scale_factor {
                 intersection = Some(iv);
             }
@@ -59,8 +58,10 @@ pub fn closest_intersections_to_all_vertices( point: &Point, lines: &Vec<Line>) 
                 results.push(intersection);
             }
         }
-        if let Some(intersection) = closest_section(&Line::from_points(point, &line.b), lines) {
-            results.push(intersection);
+        if seen_points.insert(line.b){
+            if let Some(intersection) = closest_section(&Line::from_points(point, &line.b), lines) {
+                results.push(intersection);
+            }
         }
     }
     return results;
@@ -80,8 +81,19 @@ use super::*;
         let intersection = section_point(&r, &l).expect("Calculation failed");
         assert!(intersection.point.x == 0.5);
         assert!(intersection.point.y == 1.0);
-        println!("Distance: {}", intersection.scale_factor);
         assert!(intersection.scale_factor > 2.0/3.0 - EPSILON || intersection.scale_factor > 2.0/3.0 + EPSILON);
+    }
+
+    #[test]
+    fn section_point_angled(){
+         let l = Line{ a: Point::new(0.0, 0.5), b: Point::new(0.5, 1.0) };
+        let r = Line{ a: Point::new( 0.5, 0.5), b: Point::new(0.0,1.0 )};
+
+        let intersection = section_point(&r, &l).expect("Calculation failed");
+        assert!(intersection.point.x == 0.25);
+        assert!(intersection.point.y == 0.75);
+        assert!(intersection.scale_factor > 0.5 - EPSILON || intersection.scale_factor <  0.5 + EPSILON);
+       
     }
 
     #[test]
@@ -106,7 +118,6 @@ use super::*;
 
         let i = closest_section(&r1, &lines).expect("No point returned!");
         assert!(i.point.x == 0.5);
-        println!("Intersection point {},{}", i.point.x, i.point.y);
         assert!(i.point.y == 1.0);
 
         let r2 = Line::from_coords(0.5, 0.0, 10.0, 0.2);
@@ -115,8 +126,52 @@ use super::*;
     }
 
     #[test]
+    fn find_closest_section_complex(){
+        let lines = vec!{
+            Line::from_coords(0.0, 0.0, 0.0, 1.0),
+            Line::from_coords(0.0, 1.0, 1.0, 1.0),
+            Line::from_coords(0.1, 0.6, 0.4, 0.9),            
+        };
+
+        let i = closest_section(&Line::from_coords(0.5, 0.5, 0.0, 1.0), &lines).expect("section failed");
+        assert_eq!(i.point.x, 0.25);
+        assert_eq!(i.point.y, 0.75);
+    }
+
+    #[test]
     fn find_closest_intersection_to_all_vertices(){
         // Simple case - in a square, that's just the corners
+        let mut lines = vec![
+            Line::from_coords(0.0, 0.0, 0.0, 1.0),
+            Line::from_coords(0.0, 1.0, 1.0, 1.0),
+            Line::from_coords(1.0, 1.0, 1.0, 0.0),
+            Line::from_coords(1.0, 0.0, 0.0, 0.0)
+        ];
+
+        let sections = closest_intersections_to_all_vertices(&Point::new(0.5, 0.5), &lines);
+
+        assert_eq!(sections.len(), 4);
+        assert_eq!(sections[0].point.x, 0.0);
+        assert_eq!(sections[0].point.y, 0.0);
+        assert_eq!(sections[1].point.x, 0.0);
+        assert_eq!(sections[1].point.y, 1.0);
+        assert_eq!(sections[2].point.x, 1.0);
+        assert_eq!(sections[2].point.y, 1.0);
+        assert_eq!(sections[3].point.x, 1.0);
+        assert_eq!(sections[3].point.y, 0.0);
+
+        // add line covering one corner
+
+        lines.push(Line::from_coords(0.1, 0.6, 0.4, 0.9));
+
+        let sections2 = closest_intersections_to_all_vertices(&Point::new(0.5, 0.5), &lines);
+     
+        assert_eq!(sections2.len(), 6);
+        assert_eq!(sections2[0].point.x, 0.0);
+        assert_eq!(sections2[0].point.y, 0.0);
+        assert_eq!(sections2[1].point.x, 0.25);
+        assert_eq!(sections2[1].point.y, 0.75);
+
 
     }
 }
