@@ -30,10 +30,10 @@ fn section_point(ray: &Line, line: &Line) -> Option<Intersection> {
     }
 
     return Some(Intersection {
-        point: Point {
-            x: s * (line.b.x - line.a.x) + line.a.x,
-            y: s * (line.b.y - line.a.y) + line.a.y,
-        },
+        point: Point::new_ordered(
+            s * (line.b.x - line.a.x) + line.a.x,
+            s * (line.b.y - line.a.y) + line.a.y,
+        ),
         scale_factor: r.into_inner(),
     });
 }
@@ -57,16 +57,16 @@ pub fn closest_section(ray: &Line, lines: &Vec<Line>) -> Option<Intersection> {
 
 fn get_ray_points(line: &Line) -> Vec<Point> {
     vec!(
-        Point{
-            x: OrderedFloat(-2.0 * EPSILON) * (line.b.x - line.a.x) + line.a.x,
-            y: OrderedFloat(-2.0 * EPSILON) * (line.b.y - line.a.y) + line.a.y,
-                },
+        Point::new_ordered(
+            OrderedFloat(-2.0 * EPSILON) * (line.b.x - line.a.x) + line.a.x,
+            OrderedFloat(-2.0 * EPSILON) * (line.b.y - line.a.y) + line.a.y,
+        ),
         line.a,
         line.b,
-        Point{
-            x: OrderedFloat(1.0 + 2.0 * EPSILON) * (line.b.x - line.a.x) + line.a.x,
-            y: OrderedFloat(1.0 + 2.0 * EPSILON) * (line.b.y - line.a.y) + line.a.y,
-        },
+        Point::new_ordered(
+            OrderedFloat(1.0 + 2.0 * EPSILON) * (line.b.x - line.a.x) + line.a.x,
+            OrderedFloat(1.0 + 2.0 * EPSILON) * (line.b.y - line.a.y) + line.a.y,
+        ),
     )
 }
 
@@ -108,14 +108,14 @@ mod tests {
 
     #[test]
     fn test_section_point() {
-        let l = Line {
-            a: Point::new(1.0, 1.0),
-            b: Point::new(0.0, 1.0),
-        };
-        let r = Line {
-            a: Point::new(0.5, 0.0),
-            b: Point::new(0.5, 1.5),
-        };
+        let l = Line::from_points(
+            &Point::new(1.0, 1.0),
+            &Point::new(0.0, 1.0),
+        );
+        let r = Line::from_points(
+            &Point::new(0.5, 0.0),
+            &Point::new(0.5, 1.5),
+        );
 
         let intersection = section_point(&r, &l).expect("Calculation failed");
         assert!(intersection.point.x == 0.5);
@@ -128,14 +128,14 @@ mod tests {
 
     #[test]
     fn section_point_angled() {
-        let l = Line {
-            a: Point::new(0.0, 0.5),
-            b: Point::new(0.5, 1.0),
-        };
-        let r = Line {
-            a: Point::new(0.5, 0.5),
-            b: Point::new(0.0, 1.0),
-        };
+        let l = Line::from_points(
+            &Point::new(0.0, 0.5),
+            &Point::new(0.5, 1.0),
+        );
+        let r = Line::from_points(
+            &Point::new(0.5, 0.5),
+            &Point::new(0.0, 1.0),
+        );
 
         let intersection = section_point(&r, &l).expect("Calculation failed");
         assert!(intersection.point.x == 0.25);
@@ -147,14 +147,14 @@ mod tests {
 
     #[test]
     fn test_invalid_sections() {
-        let l = Line {
-            a: Point::new(1.0, 1.0),
-            b: Point::new(0.0, 1.0),
-        };
-        let r = Line {
-            a: Point::new(0.5, 0.5),
-            b: Point::new(0.5, 0.0),
-        };
+        let l = Line::from_points(
+            &Point::new(1.0, 1.0),
+            &Point::new(0.0, 1.0),
+        );
+        let r = Line::from_points(
+            &Point::new(0.5, 0.5),
+            &Point::new(0.5, 0.0),
+        );
 
         assert!(section_point(&r, &l).is_none());
 

@@ -1,19 +1,46 @@
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use ordered_float::OrderedFloat;
+
+fn get_id() -> u32 {
+    static COUNTER: AtomicU32 = AtomicU32::new(0);
+    COUNTER.fetch_add(1, Ordering::Relaxed)
+}
+
+pub trait Entity {
+    fn id(self: &Self) -> u32;
+}
 
 #[derive(Debug, Copy)]
 #[derive(Clone)]
 #[derive(Eq,PartialEq,Hash)]
 pub struct Point {
     pub x: OrderedFloat<f64>,
-    pub y: OrderedFloat<f64>
+    pub y: OrderedFloat<f64>,
+    id: u32,
 }
 
 impl Point {
     pub fn new( x: f64, y:f64 ) -> Point {
         Point{
             x: OrderedFloat::from(x),
-            y: OrderedFloat::from(y)
+            y: OrderedFloat::from(y),
+            id: get_id(),
         }
+    }
+
+    pub fn new_ordered( x: OrderedFloat<f64>, y: OrderedFloat<f64>) -> Point {
+        Point{
+            x: x,
+            y: y,
+            id: get_id()
+        }
+    }
+}
+
+impl Entity for Point {
+    fn id(self: &Self) -> u32 {
+        self.id
     }
 }
 
@@ -26,15 +53,22 @@ pub trait LineConstructor {
 pub struct Line {
     pub a: Point,
     pub b: Point,
+    id: u32,
 }
 
 impl LineConstructor for Line{
     fn from_points( a: &Point, b: &Point ) -> Line {
-        Line { a: a.clone(), b: b.clone() }
+        Line { a: a.clone(), b: b.clone(), id: get_id() }
     }
 
     fn from_coords( x1: f64, y1: f64, x2: f64, y2: f64 ) -> Line {
-        Line{ a: Point::new( x1, y1 ), b: Point::new( x2, y2 )}
+        Line{ a: Point::new( x1, y1 ), b: Point::new( x2, y2 ), id: get_id()}
+    }
+}
+
+impl Entity for Line {
+    fn id(self: &Self) -> u32 {
+        self.id
     }
 }
 
