@@ -1,5 +1,6 @@
-use dxf::{Drawing, Point, entities::*, tables::Layer};
+use dxf::{Drawing, Point, entities::*};
 
+mod rays;
 
 fn main() {
     // let path = "test_data/gallery.dxf";
@@ -19,7 +20,7 @@ fn main() {
     // }
 
     let drawing = create_test_dxf();
-    drawing.save_file("test.dxf");
+    drawing.save_file("test.dxf").expect("Saving failed");
 }
 
 fn create_test_dxf() -> Drawing {
