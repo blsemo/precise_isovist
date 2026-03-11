@@ -34,6 +34,20 @@ impl Point {
             y: y,
         }
     }
+
+    pub fn new_ordered( x: OrderedFloat<f64>, y: OrderedFloat<f64>) -> Point {
+        Point{
+            x: x,
+            y: y,
+            id: get_id()
+        }
+    }
+}
+
+impl Entity for Point {
+    fn id(self: &Self) -> u32 {
+        self.id
+    }
 }
 
 pub trait LineConstructor { 
