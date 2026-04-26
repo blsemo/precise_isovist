@@ -34,20 +34,6 @@ impl Point {
             y: y,
         }
     }
-
-    pub fn new_ordered( x: OrderedFloat<f64>, y: OrderedFloat<f64>) -> Point {
-        Point{
-            x: x,
-            y: y,
-            id: get_id()
-        }
-    }
-}
-
-impl Entity for Point {
-    fn id(self: &Self) -> u32 {
-        self.id
-    }
 }
 
 pub trait LineConstructor { 
@@ -110,10 +96,8 @@ mod tests{
         // check the line
         assert!(line1.a.x == 1.0);
         assert!(line1.a.y == 1.0);
-        assert_eq!(a.id(), line1.a.id());
         assert!(line1.b.x == 0.0);
         assert!(line1.b.y == 2.0);
-        assert_eq!(b.id(), line1.b.id());
 
         let line2 = Line::from_coords(0.0, 1.0 , 1.5, 0.2);
         assert!(line2.a.x == 0.0);
