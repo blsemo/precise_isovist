@@ -1,3 +1,4 @@
+use std::hash::Hash;
 use std::{collections::HashSet, fmt::Debug};
 use std::convert::From;
 
@@ -48,7 +49,7 @@ pub fn closest_section<'l>(ray: &Line, lines: &'l Vec<Line>) -> Option<Intersect
     let mut intersection: Option<Intersection> = None;
 
     for line in lines {
-        let i = section_point(ray, line);
+        let mut i = section_point(ray, line);
         if let Some(iv) = i {
             if intersection.is_none()
                 || iv.scale_factor < intersection.as_ref().unwrap().scale_factor
