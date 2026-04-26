@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::hash::{Hash, Hasher};
 
 use ordered_float::OrderedFloat;
 
@@ -42,6 +43,7 @@ pub trait LineConstructor {
 
 #[derive(Debug)]
 #[derive(Clone)]
+#[derive(Eq)]
 pub struct Line {
     pub a: Point,
     pub b: Point,
@@ -55,6 +57,18 @@ impl LineConstructor for Line{
 
     fn from_coords( x1: f64, y1: f64, x2: f64, y2: f64 ) -> Line {
         Line{ a: Point::new( x1, y1 ), b: Point::new( x2, y2 ), id: get_id()}
+    }
+}
+
+impl PartialEq for Line{
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Hash for Line{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
 

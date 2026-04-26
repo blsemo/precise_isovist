@@ -1,18 +1,21 @@
+use std::hash::Hash;
 use std::{collections::HashSet, fmt::Debug};
+use std::convert::From;
 
 use ordered_float::OrderedFloat;
 
 use super::types::*;
 
 #[derive(Debug)]
-pub struct Intersection {
+pub struct Intersection<'l> {
     pub point: Point,
     pub scale_factor: f64,
+    pub lines: HashSet::<&'l Line>,
 }
 
 const EPSILON: f64 = 0.00000001;
 
-fn section_point(ray: &Line, line: &Line) -> Option<Intersection> {
+fn section_point<'l>(ray: &Line, line: &'l Line) -> Option<Intersection<'l>> {
     let d =
         (ray.b.x - ray.a.x) * (line.b.y - line.a.y) - (line.b.x - line.a.x) * (ray.b.y - ray.a.y);
     let r = ((line.b.x - line.a.x) * (ray.a.y - line.a.y)
@@ -29,25 +32,32 @@ fn section_point(ray: &Line, line: &Line) -> Option<Intersection> {
         return None;
     }
 
+    let mut lines = HashSet::<&'l Line>::new();
+    lines.insert(line);
+
     return Some(Intersection {
         point: Point::new_ordered(
             s * (line.b.x - line.a.x) + line.a.x,
             s * (line.b.y - line.a.y) + line.a.y,
         ),
         scale_factor: r.into_inner(),
+        lines,
     });
 }
 
-pub fn closest_section(ray: &Line, lines: &Vec<Line>) -> Option<Intersection> {
+pub fn closest_section<'l>(ray: &Line, lines: &'l Vec<Line>) -> Option<Intersection<'l>> {
     let mut intersection: Option<Intersection> = None;
 
     for line in lines {
-        let i = section_point(ray, line);
+        let mut i = section_point(ray, line);
         if let Some(iv) = i {
             if intersection.is_none()
                 || iv.scale_factor < intersection.as_ref().unwrap().scale_factor
             {
                 intersection = Some(iv);
+            }
+            else if intersection.as_ref().unwrap().scale_factor == iv.scale_factor {
+                intersection.as_mut().unwrap().lines.extend(iv.lines);
             }
         }
     }
@@ -70,10 +80,10 @@ fn get_ray_points(line: &Line) -> Vec<Point> {
     )
 }
 
-pub fn closest_intersections_to_all_vertices(
+pub fn closest_intersections_to_all_vertices<'l>(
     point: &Point,
-    lines: &Vec<Line>,
-) -> Vec<Intersection> {
+    lines: &'l Vec<Line>,
+) -> Vec<Intersection<'l>> {
     let mut results = Vec::<Intersection>::new();
     let mut seen_points = HashSet::new();
     for line in lines {
@@ -181,6 +191,34 @@ mod tests {
     }
 
     #[test]
+    fn find_closest_section_corner() {
+        let lines = vec![
+            Line::from_coords(0.0, 0.0, 0.0, 1.0),
+            Line::from_coords(0.0, 1.0, 1.0, 1.0),
+        ];
+
+        let r1 = Line::from_coords(1.0, 0.0, -1.0, 2.0);
+
+        let i = closest_section(&r1, &lines).expect("No point returned!");
+        assert!(i.point.x == 0.0);
+        assert!(i.point.y == 1.0);
+        assert_eq!(i.lines.len(), 2);
+        assert!(i.lines.contains(&lines[0]));
+        assert!(i.lines.contains(&lines[1]));
+
+
+        let r2 = Line::from_coords(0.5, 0.0, 0.5, 2.0);
+
+        let i2 = closest_section(&r2, &lines).expect("No point returned");
+        assert!(i2.point.x == 0.5);
+        assert!(i2.point.y == 1.0);
+        assert_eq!(i2.lines.len(), 1);
+        assert!(i2.lines.contains(&lines[1]));
+
+
+    }
+
+    #[test]
     fn find_closest_section_complex() {
         let lines = vec![
             Line::from_coords(0.0, 0.0, 0.0, 1.0),
@@ -242,11 +280,19 @@ mod tests {
 
     #[test]
     fn test_point_sorting() {
+        let line1 = Line::from_coords(0.5, 1.0, 1.0, 1.0);
+        let line2 = Line::from_coords(0.1, 0.1, 0.5, 1.0);
+
+        let mut set = HashSet::<&Line>::new();
+        set.insert(&line1);
+        set.insert(&line2);
+
+
         let intersections = vec!(
-            Intersection{ point: Point::new(1.0, 1.0), scale_factor: 0.0 },
-            Intersection{ point: Point::new(0.0, 1.0), scale_factor: 0.0 },
-            Intersection{ point: Point::new(0.5, 1.0), scale_factor: 0.0 },
-            Intersection{ point: Point::new(0.1, 0.1), scale_factor: 0.0 },
+            Intersection{ point: Point::new(1.0, 1.0), scale_factor: 0.0, lines: set.clone() },
+            Intersection{ point: Point::new(0.0, 1.0), scale_factor: 0.0, lines: set.clone() },
+            Intersection{ point: Point::new(0.5, 1.0), scale_factor: 0.0, lines: set.clone() },
+            Intersection{ point: Point::new(0.1, 0.1), scale_factor: 0.0, lines: set.clone()  },
         );
 
         let sorted = sort_intersections(&Point::new(0.5, 0.5), &intersections);
