@@ -97,16 +97,16 @@ pub fn closest_intersections_to_all_vertices<'l>(
     return results;
 }
 
-pub fn sort_intersections(
+pub fn sort_intersections<'l>(
     point: &Point,
-    intersections: &Vec<Intersection>,
-) -> Vec<Point> {
-    let mut points = Vec::<Point>::new();
+    intersections: &'l Vec<Intersection>,
+) -> Vec<&'l Intersection<'l>> {
+    let mut points= Vec::<&Intersection>::new();
     for intersection in intersections {
-        points.push(intersection.point.clone());
+        points.push(intersection);
     }
 
-    points.sort_by(|a, b| (b.y - point.y).atan2(*(b.x - point.x)).partial_cmp(&(a.y - point.y).atan2(*(a.x - point.x))).expect("Comparison failed")  );
+    points.sort_by(|a, b| (b.point.y - point.y).atan2(*(b.point.x - point.x)).partial_cmp(&(a.point.y - point.y).atan2(*(a.point.x - point.x))).expect("Comparison failed")  );
     return points;
 }
 
@@ -301,17 +301,17 @@ mod tests {
 
         assert_eq!(sorted.len(), 4);
 
-        assert_eq!(sorted[0].x, 0.0);
-        assert_eq!(sorted[0].y, 1.0);
+        assert_eq!(sorted[0].point.x, 0.0);
+        assert_eq!(sorted[0].point.y, 1.0);
 
-        assert_eq!(sorted[1].x, 0.5);
-        assert_eq!(sorted[1].y, 1.0);
+        assert_eq!(sorted[1].point.x, 0.5);
+        assert_eq!(sorted[1].point.y, 1.0);
 
-        assert_eq!(sorted[2].x, 1.0);
-        assert_eq!(sorted[2].y, 1.0);
+        assert_eq!(sorted[2].point.x, 1.0);
+        assert_eq!(sorted[2].point.y, 1.0);
 
-        assert_eq!(sorted[3].x, 0.1);
-        assert_eq!(sorted[3].y, 0.1);
+        assert_eq!(sorted[3].point.x, 0.1);
+        assert_eq!(sorted[3].point.y, 0.1);
 
 
     }
