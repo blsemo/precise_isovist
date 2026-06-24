@@ -1,6 +1,7 @@
 use dxf::{Drawing, Point, entities::*};
 
 mod rays;
+mod isovists;
 
 fn main() {
     // let path = "test_data/gallery.dxf";
