@@ -12,6 +12,18 @@ pub struct Intersection<'l> {
     pub lines: HashSet::<&'l Line>,
 }
 
+impl<'l> Intersection<'l> {
+    pub fn merge( &self, other: &Intersection<'l>) -> Intersection<'l> {
+        let mut lines = self.lines.clone();
+        lines.extend(&other.lines);
+        Intersection{
+            point: self.point,
+            scale_factor: self.scale_factor,
+            lines
+        }
+    }
+}
+
 const EPSILON: f64 = 0.00000001;
 
 fn section_point<'l>(ray: &Line, line: &'l Line) -> Option<Intersection<'l>> {
@@ -110,10 +122,65 @@ pub fn sort_intersections<'l>(
     return points;
 }
 
+impl Point {
+    fn distance( &self,  other: &Point ) -> f64 {
+        f64::sqrt(((self.x - other.x) * (self.x - other.x) + (self.y - other.y) * (self.y - other.y)).into_inner())
+    }
+}
+
+
+pub fn collate_intersections<'l>(
+    sorted_intersections: &Vec<& Intersection<'l>> 
+) -> Vec<Intersection<'l>> {
+    vec!()
+
+}
+
 #[cfg(test)]
 
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_point_distance(){
+        assert_eq!( Point::new(0.0, 1.0).distance(&Point::new(1.0, 1.0)), 1.0);
+        let dist = Point::new(0.0, 0.0).distance(&Point::new(1.0, 1.0));
+        assert!(dist > 1.41 && dist < 1.42);
+    }
+
+    #[test]
+    fn merge_intersections(){
+        let line1 = Line::from_coords(0.0, 0.0, 0.0, 1.0);
+        let mut lines1 = HashSet::<&Line>::new();
+        lines1.insert(&line1);
+        
+        
+        let line2 = Line::from_coords(0.0, 1.0, 1.0, 1.0);
+        let mut lines2 = HashSet::<&Line>::new();
+        lines2.insert(&line2);
+        
+        let intersection1 = Intersection{
+            point: Point::new(0.0, 1.0),
+            scale_factor: 1.0,
+            lines: lines1
+        };
+
+        let intersection2 = Intersection{
+            point: Point::new(0.000001, 1.0),
+            scale_factor: 1.1,
+            lines: lines2
+        };
+
+        let result = intersection1.merge(&intersection2);
+
+        assert_eq!( result.point, intersection1.point);
+        assert_eq!(result.scale_factor, intersection1.scale_factor);
+
+        assert_eq!(result.lines.len(), 2);
+        assert(result.lines.contains(&line1));
+        assert(result.lines.contains(&line2));
+
+    }
 
     #[test]
     fn test_section_point() {
