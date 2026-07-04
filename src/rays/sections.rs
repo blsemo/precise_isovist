@@ -7,7 +7,7 @@ use crate::rays::error::GeometryError;
 
 use super::types::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Intersection<'l> {
     pub point: Point,
     pub scale_factor: f64,
@@ -16,7 +16,7 @@ pub struct Intersection<'l> {
 
 impl<'l> Intersection<'l> {
     pub fn merge(&self, other: &Intersection<'l>) -> Result<Intersection<'l>, GeometryError> {
-        if self.point.distance(&other.point) > EPSILON {
+        if !self.point.can_merge(&other.point) {
             return Err(GeometryError::TooFarApartToMerge.into());
         }
         let mut lines = self.lines.clone();
@@ -134,13 +134,39 @@ pub fn sort_intersections<'l>(
 pub fn collate_intersections<'l>(
     sorted_intersections: &Vec<&Intersection<'l>>,
 ) -> Vec<Intersection<'l>> {
-    vec![]
+    let mut collated_intersections = Vec::<Intersection>::new();
+
+    let mut candidate: Option<Intersection> = None;
+    for intersection in sorted_intersections {
+        if let Some(last) = candidate {
+            if last.point.can_merge(&intersection.point) {
+                candidate = Some(last.merge(*intersection).expect("Failed to merge points"));
+            } else {
+                collated_intersections.push(last);
+                candidate = Some((**intersection).clone());
+            }
+        } else {
+            candidate = Some((**intersection).clone());
+        }
+    }
+    if let Some(last) = candidate {
+        collated_intersections.push(last);
+    }
+
+    return collated_intersections;
+}
+
+impl Point {
+    pub fn can_merge(&self, other: &Point) -> bool {
+        self.distance(other) < EPSILON
+    }
 }
 
 #[cfg(test)]
 
 mod tests {
     use super::*;
+    use common_macros::hash_set;
 
     #[test]
     fn merge_intersections() {
@@ -174,6 +200,15 @@ mod tests {
         assert_eq!(result.lines.len(), 2);
         assert!(result.lines.contains(&line1));
         assert!(result.lines.contains(&line2));
+
+        let result_same = intersection1
+            .merge(&intersection1.clone())
+            .expect("Failed to merge identical intersections");
+        assert_eq!(result_same.point, intersection1.point);
+        assert_eq!(result_same.scale_factor, intersection1.scale_factor);
+
+        assert_eq!(result_same.lines.len(), 1);
+        assert!(result_same.lines.contains(&line1));
     }
 
     #[test]
@@ -395,5 +430,96 @@ mod tests {
 
         assert_eq!(sorted[3].point.x, 0.1);
         assert_eq!(sorted[3].point.y, 0.1);
+    }
+
+    #[test]
+    fn test_interssection_collation() {
+        let empty_list = Vec::<&Intersection>::new();
+
+        let empty_result = collate_intersections(&empty_list);
+        assert!(empty_result.is_empty());
+
+        let line1 = Line::from_coords(0.5, 1.0, 1.0, 1.0);
+        let line2 = Line::from_coords(1.0, 1.0, 1.0, 0.0);
+
+        let intersection1 = Intersection {
+            point: Point::new(0.5, 1.0),
+            scale_factor: 1.0,
+            lines: hash_set!(&line1,),
+        };
+
+        let intersection2 = Intersection {
+            point: Point::new(1.0, 1.0),
+            scale_factor: 1.0,
+            lines: hash_set!(&line1,),
+        };
+
+        let intersection3 = Intersection {
+            point: Point::new(1.0, 1.0),
+            scale_factor: 1.0,
+            lines: hash_set!(&line2,),
+        };
+
+        let intersection4 = Intersection {
+            point: Point::new(1.0, 0.0),
+            scale_factor: 1.0,
+            lines: hash_set!(&line2,),
+        };
+
+        let merged_intersection = Intersection {
+            point: intersection2.point.clone(),
+            scale_factor: 1.0,
+            lines: hash_set!(&line1, &line2),
+        };
+
+        // No points to merge
+
+        let no_merge_intersections = vec![&intersection1, &intersection2, &intersection4];
+        merge_and_assert(
+            &no_merge_intersections,
+            &vec![
+                intersection1.clone(),
+                intersection2.clone(),
+                intersection4.clone(),
+            ],
+        );
+
+        let merge_at_end_intersections = vec![&intersection1, &intersection2, &intersection3];
+        merge_and_assert(
+            &merge_at_end_intersections,
+            &vec![intersection1.clone(), merged_intersection.clone()],
+        );
+
+        let merge_at_begin_intersections = vec![&intersection2, &intersection3, &intersection4];
+        merge_and_assert(
+            &merge_at_begin_intersections,
+            &vec![merged_intersection.clone(), intersection4.clone()],
+        );
+
+        let merged_in_middle_intersections = vec![
+            &intersection1,
+            &intersection2,
+            &intersection3,
+            &intersection4,
+        ];
+        merge_and_assert(
+            &merged_in_middle_intersections,
+            &vec![
+                intersection1.clone(),
+                merged_intersection.clone(),
+                intersection4.clone(),
+            ],
+        );
+    }
+
+    fn merge_and_assert(input: &Vec<&Intersection>, expected: &Vec<Intersection>) {
+        let result = collate_intersections(input);
+
+        assert_eq!(result.len(), expected.len());
+
+        for (i, el) in result.iter().enumerate() {
+            assert_eq!(el.point, expected[i].point);
+            assert_eq!(el.lines, expected[i].lines);
+        }
     }
 }
