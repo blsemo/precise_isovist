@@ -170,6 +170,49 @@ impl Point {
     }
 }
 
+pub fn maximise_lines<'l>(
+    sorted_intersections: &'l Vec<Intersection<'l>>
+) -> Vec<&'l Intersection<'l>> {
+    let mut result = Vec::<&Intersection<'l>>::new();
+    let mut candidates = Vec::<&Intersection>::new();
+    let mut common_lines = HashSet::<&Line>::new();
+
+    for section in sorted_intersections {
+        if let Some(curr) = candidates.first() {
+            if common_lines.is_empty() {
+                common_lines = curr.lines.intersection(&section.lines).map(|l| *l).collect();
+            } else {
+                common_lines = section.lines.intersection(&common_lines).map(|l| *l).collect();
+            }
+
+
+            // no common line between the first point and the current - we reached
+            // the end of the line and need to store the relevant points in the result.
+            if common_lines.is_empty() {
+                if let Some(beg) = candidates.first() {
+                    result.push(beg);
+                    if candidates.len() > 1 {
+                        result.push(candidates.last().unwrap());
+                    }
+                    candidates.clear();
+                }
+            } 
+        }
+        candidates.push(section);
+    }
+
+    // we're trough - need to handle the last set of points
+    if let Some(beg) = candidates.first() {
+        result.push(beg);
+        if candidates.len() > 1 {
+            result.push(candidates.last().unwrap());
+        }
+    }
+
+    // need to handle wrap-around here
+    return result
+}
+
 #[cfg(test)]
 
 mod tests {
@@ -574,4 +617,48 @@ mod tests {
 
         assert_eq!(sorted_intersections.len(), collated_intersections.len() + 2);
     }
+
+    #[test]
+    fn test_maximise_line_simple(){
+        // Simple case - in a square, that's just the corners
+        let lines = vec![
+            Line::from_coords(0.0, 0.0, 0.0, 1.0),
+            Line::from_coords(0.0, 1.0, 1.0, 1.0),
+            Line::from_coords(1.0, 1.0, 1.0, 0.0),
+            Line::from_coords(1.0, 0.0, 0.0, 0.0),
+        ];
+
+        let point = Point::new(0.5, 0.5);
+
+        let sections = closest_intersections_to_all_vertices(&point, &lines);
+
+        for section in &sections {
+            println!("{:?}", section);
+        }
+
+        let sorted_intersections = sort_intersections(&point, &sections);
+
+        println!("Sorted:");
+        for section in &sorted_intersections {
+            println!("{:?}", section);
+        }
+
+        let collated_intersections = collate_intersections(&sorted_intersections);
+
+        println!("Collated:");
+        for section in &collated_intersections {
+            println!("{:?}", section);
+        }
+
+        println!("Maximized:");
+        let maximized = maximise_lines(&collated_intersections);
+        for section in &maximized {
+            println!("{:?}", section);
+        }
+
+
+
+    }
+
+
 }
