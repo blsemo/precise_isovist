@@ -150,7 +150,15 @@ pub fn collate_intersections<'l>(
         }
     }
     if let Some(last) = candidate {
-        collated_intersections.push(last);
+        if let Some(first) = collated_intersections.first() {
+            if first.point.can_merge(&last.point) {
+                collated_intersections[0] = first.merge(&last).expect("Unexpected merge fail");
+            } else {
+                collated_intersections.push(last);
+            }
+        } else {
+            collated_intersections.push(last);
+        }
     }
 
     return collated_intersections;
@@ -472,28 +480,29 @@ mod tests {
             lines: hash_set!(&line1, &line2),
         };
 
+        // only one intersection
+
+        let only_one_intersection = vec!(&intersection1);
+        merge_and_assert(&only_one_intersection, &only_one_intersection);
+
         // No points to merge
 
         let no_merge_intersections = vec![&intersection1, &intersection2, &intersection4];
         merge_and_assert(
             &no_merge_intersections,
-            &vec![
-                intersection1.clone(),
-                intersection2.clone(),
-                intersection4.clone(),
-            ],
+            &no_merge_intersections
         );
 
         let merge_at_end_intersections = vec![&intersection1, &intersection2, &intersection3];
         merge_and_assert(
             &merge_at_end_intersections,
-            &vec![intersection1.clone(), merged_intersection.clone()],
+            &vec![&intersection1, &merged_intersection],
         );
 
         let merge_at_begin_intersections = vec![&intersection2, &intersection3, &intersection4];
         merge_and_assert(
             &merge_at_begin_intersections,
-            &vec![merged_intersection.clone(), intersection4.clone()],
+            &vec![&merged_intersection, &intersection4],
         );
 
         let merged_in_middle_intersections = vec![
@@ -505,14 +514,19 @@ mod tests {
         merge_and_assert(
             &merged_in_middle_intersections,
             &vec![
-                intersection1.clone(),
-                merged_intersection.clone(),
-                intersection4.clone(),
+                &intersection1,
+                &merged_intersection,
+                &intersection4,
             ],
         );
+
+
+        // merge wraps around the end
+        let merge_wrap_intersections = vec!(&intersection2, &intersection4, &intersection3);
+        merge_and_assert(&merge_wrap_intersections, &vec!(&merged_intersection, &intersection4));
     }
 
-    fn merge_and_assert(input: &Vec<&Intersection>, expected: &Vec<Intersection>) {
+    fn merge_and_assert(input: &Vec<&Intersection>, expected: &Vec<&Intersection>) {
         let result = collate_intersections(input);
 
         assert_eq!(result.len(), expected.len());
@@ -521,5 +535,43 @@ mod tests {
             assert_eq!(el.point, expected[i].point);
             assert_eq!(el.lines, expected[i].lines);
         }
+    }
+
+    #[test]
+    fn put_it_all_together() {
+        // Simple case - in a square, that's just the corners
+        let mut lines = vec![
+            Line::from_coords(0.0, 0.0, 0.0, 1.0),
+            Line::from_coords(0.0, 1.0, 1.0, 1.0),
+            Line::from_coords(1.0, 1.0, 1.0, 0.0),
+            Line::from_coords(1.0, 0.0, 0.0, 0.0),
+        ];
+
+        // add one line that gives us a section very close to an existing one
+
+        lines.push(Line::from_coords(-1.0, 0.0, -1.0, 1.999999999999999));
+        let point = Point::new(0.5, 0.5);
+
+        let sections = closest_intersections_to_all_vertices(&point, &lines);
+
+        for section in &sections {
+            println!("{:?}", section);
+        }
+
+        let sorted_intersections = sort_intersections(&point, &sections);
+
+        println!("Sorted:");
+        for section in &sorted_intersections {
+            println!("{:?}", section);
+        }
+
+        let collated_intersections = collate_intersections(&sorted_intersections);
+
+        println!("Collated:");
+        for section in &collated_intersections {
+            println!("{:?}", section);
+        }
+
+        assert_eq!(sorted_intersections.len(), collated_intersections.len() + 2);
     }
 }
