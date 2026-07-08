@@ -761,6 +761,17 @@ mod tests {
         maximise_and_assert(
             &vec!(intersection1.clone(), intersection2.clone(), intersection4.clone(), intersection5.clone(), intersection7.clone()), 
             &vec!(&intersection1, &intersection4, &intersection7 ));
+
+        // 3 points on one, 3 points on second, common corner is at begin of list
+        maximise_and_assert(
+            &vec!(intersection4.clone(), intersection5.clone(), intersection7.clone(), intersection1.clone(), intersection2.clone(), ), 
+            &vec!(&intersection4, &intersection7, &intersection1));
+
+        // 3 points on one, 3 points on second, common corner is at end of list
+        maximise_and_assert(
+            &vec!(intersection5.clone(), intersection7.clone(), intersection1.clone(), intersection2.clone(), intersection4.clone() ), 
+            &vec!( &intersection7, &intersection1, &intersection4,));
+
     
     }
 
