@@ -171,7 +171,7 @@ impl Point {
 }
 
 pub fn maximise_lines<'l>(
-    sorted_intersections: &'l Vec<Intersection<'l>>
+    sorted_intersections: &'l Vec<Intersection<'l>>,
 ) -> Vec<&'l Intersection<'l>> {
     let mut result = Vec::<&Intersection<'l>>::new();
     let mut candidates = Vec::<&Intersection>::new();
@@ -180,11 +180,18 @@ pub fn maximise_lines<'l>(
     for section in sorted_intersections {
         if let Some(curr) = candidates.first() {
             if common_lines.is_empty() {
-                common_lines = curr.lines.intersection(&section.lines).map(|l| *l).collect();
+                common_lines = curr
+                    .lines
+                    .intersection(&section.lines)
+                    .map(|l| *l)
+                    .collect();
             } else {
-                common_lines = section.lines.intersection(&common_lines).map(|l| *l).collect();
+                common_lines = section
+                    .lines
+                    .intersection(&common_lines)
+                    .map(|l| *l)
+                    .collect();
             }
-
 
             // no common line between the first point and the current - we reached
             // the end of the line and need to store the relevant points in the result.
@@ -196,7 +203,7 @@ pub fn maximise_lines<'l>(
                     }
                     candidates.clear();
                 }
-            } 
+            }
         }
         candidates.push(section);
     }
@@ -210,7 +217,7 @@ pub fn maximise_lines<'l>(
     }
 
     // need to handle wrap-around here
-    return result
+    return result;
 }
 
 #[cfg(test)]
@@ -525,16 +532,13 @@ mod tests {
 
         // only one intersection
 
-        let only_one_intersection = vec!(&intersection1);
+        let only_one_intersection = vec![&intersection1];
         merge_and_assert(&only_one_intersection, &only_one_intersection);
 
         // No points to merge
 
         let no_merge_intersections = vec![&intersection1, &intersection2, &intersection4];
-        merge_and_assert(
-            &no_merge_intersections,
-            &no_merge_intersections
-        );
+        merge_and_assert(&no_merge_intersections, &no_merge_intersections);
 
         let merge_at_end_intersections = vec![&intersection1, &intersection2, &intersection3];
         merge_and_assert(
@@ -556,17 +560,15 @@ mod tests {
         ];
         merge_and_assert(
             &merged_in_middle_intersections,
-            &vec![
-                &intersection1,
-                &merged_intersection,
-                &intersection4,
-            ],
+            &vec![&intersection1, &merged_intersection, &intersection4],
         );
 
-
         // merge wraps around the end
-        let merge_wrap_intersections = vec!(&intersection2, &intersection4, &intersection3);
-        merge_and_assert(&merge_wrap_intersections, &vec!(&merged_intersection, &intersection4));
+        let merge_wrap_intersections = vec![&intersection2, &intersection4, &intersection3];
+        merge_and_assert(
+            &merge_wrap_intersections,
+            &vec![&merged_intersection, &intersection4],
+        );
     }
 
     fn merge_and_assert(input: &Vec<&Intersection>, expected: &Vec<&Intersection>) {
@@ -619,7 +621,162 @@ mod tests {
     }
 
     #[test]
-    fn test_maximise_line_simple(){
+    fn test_maximise_lines() {
+        let empty_list = Vec::<Intersection>::new();
+        let empty_expected = Vec::<&Intersection>::new();
+        maximise_and_assert(&empty_list, &empty_expected);
+
+        let line1 = Line::from_coords(0.0, 0.0, 0.0, 1.0);
+        let line2 = Line::from_coords(0.0, 1.0, 1.0, 1.0);
+        let line3 = Line::from_coords(0.4, 0.7, 0.6, 0.7);
+
+        let intersection1 = Intersection {
+            point: Point::new(0.0, 0.0),
+            scale_factor: 1.0,
+            lines: hash_set!(&line1,),
+        };
+
+        let intersection2 = Intersection {
+            point: Point::new(0.0, 0.5),
+            scale_factor: 1.0,
+            lines: hash_set!(&line1,),
+        };
+
+        let intersection3 = Intersection {
+            point: Point::new(0.0, 0.7),
+            scale_factor: 1.0,
+            lines: hash_set!(&line1,),
+        };
+
+        let intersection4 = Intersection {
+            point: Point::new(0.0, 1.0),
+            scale_factor: 1.0,
+            lines: hash_set!(&line1, &line2,),
+        };
+
+        let intersection5 = Intersection {
+            point: Point::new(0.3, 1.0),
+            scale_factor: 1.0,
+            lines: hash_set!(&line2,),
+        };
+
+        let intersection6 = Intersection {
+            point: Point::new(0.7, 1.0),
+            scale_factor: 1.0,
+            lines: hash_set!(&line2,),
+        };
+
+        let intersection5x = Intersection {
+            point: Point::new(0.4, 0.7),
+            scale_factor: 1.0,
+            lines: hash_set!(&line3),
+        };
+
+        let intersection6x = Intersection {
+            point: Point::new(0.6, 0.7),
+            scale_factor: 1.0,
+            lines: hash_set!(&line3),
+        };
+
+        let intersection7 = Intersection {
+            point: Point::new(1.0, 1.0),
+            scale_factor: 1.0,
+            lines: hash_set!(&line2,),
+        };
+
+        // 2 points on one line
+        maximise_and_assert(
+            &vec![intersection1.clone(), intersection2.clone()],
+            &vec![&intersection1, &intersection2],
+        );
+
+        // 3 point on 2 lines (one common)
+        maximise_and_assert(
+            &vec![
+                intersection1.clone(),
+                intersection4.clone(),
+                intersection7.clone(),
+            ],
+            &vec![&intersection1, &intersection4, &intersection7],
+        );
+
+        // 4 points on 2 lines, no overlap
+        maximise_and_assert(
+            &vec![
+                intersection1.clone(),
+                intersection2.clone(),
+                intersection5.clone(),
+                intersection6.clone(),
+            ],
+            &vec![
+                &intersection1,
+                &intersection2,
+                &intersection5,
+                &intersection6,
+            ],
+        );
+
+        // 6 points on 2 lines (interrupted)
+        maximise_and_assert(
+            &vec![
+                intersection4.clone(),
+                intersection5.clone(),
+                intersection5x.clone(),
+                intersection6x.clone(),
+                intersection6.clone(),
+                intersection7.clone(),
+            ],
+            &vec![
+                &intersection4,
+                &intersection5,
+                &intersection5x,
+                &intersection6x,
+                &intersection6,
+                &intersection7,
+            ],
+        );
+
+        // 3 points on 1 line, one in the middle should be dropped
+        maximise_and_assert(
+            &vec!(intersection1.clone(), intersection2.clone(), intersection3.clone()), 
+            &vec!(&intersection1, &intersection3));
+
+        // 4 points on 1 line, two in the middle should be dropped
+        maximise_and_assert(
+            &vec!(intersection1.clone(), intersection2.clone(), intersection3.clone(), intersection4.clone()), 
+            &vec!(&intersection1, &intersection4));
+
+
+        // 3 points on one, 3 points on second, no overlap
+        maximise_and_assert(
+            &vec!(intersection1.clone(), intersection2.clone(), intersection3.clone(), intersection5.clone(), intersection6.clone(), intersection7.clone()), 
+            &vec!(&intersection1, &intersection3, &intersection5, &intersection7));
+
+        // 3 points on one, 2 points on second, common corner
+        maximise_and_assert(
+            &vec!(intersection1.clone(), intersection2.clone(), intersection4.clone(), intersection5.clone()), 
+            &vec!(&intersection1, &intersection4, &intersection5));
+
+        // 3 points on one, 3 points on second, common corner
+        maximise_and_assert(
+            &vec!(intersection1.clone(), intersection2.clone(), intersection4.clone(), intersection5.clone(), intersection7.clone()), 
+            &vec!(&intersection1, &intersection4, &intersection7 ));
+    
+    }
+
+    fn maximise_and_assert(input: &Vec<Intersection>, expected: &Vec<&Intersection>) {
+        let result = maximise_lines(input);
+
+        assert_eq!(result.len(), expected.len());
+
+        for (i, el) in result.iter().enumerate() {
+            assert_eq!(el.point, expected[i].point);
+            assert_eq!(el.lines, expected[i].lines);
+        }
+    }
+
+    #[test]
+    fn test_maximise_line_full_stack_simple_geometry() {
         // Simple case - in a square, that's just the corners
         let lines = vec![
             Line::from_coords(0.0, 0.0, 0.0, 1.0),
@@ -655,10 +812,5 @@ mod tests {
         for section in &maximized {
             println!("{:?}", section);
         }
-
-
-
     }
-
-
 }
