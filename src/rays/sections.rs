@@ -952,6 +952,5 @@ mod tests {
         assert_eq!(maximized[1].point, Point::new(1.0, 1.0));
         assert_eq!(maximized[2].point, Point::new(1.0, 0.0));
         assert_eq!(maximized[3].point, Point::new(0.0, 0.0));
-
     }
 }
