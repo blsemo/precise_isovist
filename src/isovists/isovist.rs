@@ -1,5 +1,8 @@
 use crate::rays::{
-    sections::{Intersection, closest_intersections_to_all_vertices, sort_intersections},
+    sections::{
+        Intersection, closest_intersections_to_all_vertices, collate_intersections, maximise_lines,
+        sort_intersections,
+    },
     types::{Line, LineConstructor, Point},
 };
 use std::{error::Error, fmt::Display};
@@ -9,9 +12,33 @@ pub struct Border {
     pub is_bounded: bool,
 }
 
-struct InternalBorder<'l> {
-    pub line: Line,
-    pub on_line: Option<&'l Line>,
+impl Border {
+    pub fn from_intersections(i1: &Intersection, i2: &Intersection) -> Border {
+        let bounded = !i1
+            .lines
+            .intersection(&i2.lines)
+            .collect::<Vec<_>>()
+            .is_empty();
+        Border {
+            line: Line::from_points(&i1.point, &i2.point),
+            is_bounded: bounded,
+        }
+    }
+}
+
+impl Display for Border {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!(
+            "Border ({}) from {:?} to {:?}",
+            if self.is_bounded {
+                "bounded"
+            } else {
+                "unbounded"
+            },
+            self.line.a,
+            self.line.b
+        ))
+    }
 }
 
 #[derive(Debug)]
@@ -38,26 +65,26 @@ impl Error for IsovistError {}
 pub fn find_isovist(plan: &Vec<Line>, point: &Point) -> Result<Vec<Border>, IsovistError> {
     let intersections = closest_intersections_to_all_vertices(point, plan);
     let sorted_intersections = sort_intersections(point, &intersections);
+    let collated_intersections = collate_intersections(&sorted_intersections);
+    let maximised = maximise_lines(&collated_intersections);
     let mut previous_point: Option<&Intersection> = None;
-    let mut candidate_borders: Vec<InternalBorder> = vec![];
-
-    for point in sorted_intersections {
-        if let Some(previous) = previous_point {
-            let mut line_section = previous.lines.intersection(&point.lines);
-            candidate_borders.push(InternalBorder {
-                line: Line::from_points(&previous.point, &point.point),
-                on_line: line_section.next().map(|v| *v),
-            });
-            if let Some(_) = line_section.next() {
-                return Err(IsovistError::new(
-                    "More than one line attached to a single border",
-                ));
-            }
-        }
-        previous_point = Some(point)
+    let mut result = Vec::<Border>::new();
+    if maximised.len() < 3 {
+        return Err(IsovistError::new("Too few points to construct isovist"));
     }
 
-    Ok(vec![])
+    for current in &maximised {
+        if let Some(previous) = previous_point {
+            result.push(Border::from_intersections(previous, current));
+        }
+        previous_point = Some(current);
+    }
+    result.push(Border::from_intersections(
+        maximised.last().unwrap(),
+        maximised.first().unwrap(),
+    ));
+
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -70,11 +97,10 @@ mod tests {
             Line::from_coords(0.0, 0.0, 0.0, 1.0),
             Line::from_coords(0.0, 1.0, 1.0, 1.0),
             Line::from_coords(1.0, 1.0, 1.0, 0.0),
-            Line::from_coords(1.0, 0.0, 1.0, 1.0),
+            Line::from_coords(1.0, 0.0, 0.0, 0.0),
         ]
     }
 
-    #[ignore]
     #[test]
     fn simple_square() {
         let plan = create_square();
@@ -82,6 +108,34 @@ mod tests {
         let point = Point::new(0.5, 0.5);
 
         let result = find_isovist(&plan, &point);
-        assert_eq!(result.unwrap().len(), 4);
+        let unwrapped = result.unwrap();
+        for b in &unwrapped {
+            print!("{}\n", b);
+        }
+        assert_eq!(unwrapped.len(), 4);
+    }
+
+    #[test]
+    fn square_with_floating_line() {
+        let mut plan = create_square();
+
+        // Add line shading part of the left half of the square
+        plan.push(Line::from_coords(0.3, 0.4, 0.3, 0.8));
+
+        let point = Point::new(0.5, 0.5);
+
+        let result = find_isovist(&plan, &point);
+        let unwrapped = result.unwrap();
+        for b in &unwrapped {
+            print!("{}\n", b);
+        }
+        assert_eq!(unwrapped.len(), 7);
+        assert_eq!(
+            unwrapped
+                .iter()
+                .map(|b| b.is_bounded)
+                .collect::<Vec<bool>>(),
+            vec!(false, true, true, true, true, false, true)
+        );
     }
 }

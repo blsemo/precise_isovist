@@ -232,12 +232,12 @@ pub fn maximise_lines<'l>(
             if sorted_intersections.len() - beg > 1 {
                 beg = sorted_intersections.len() - 1;
                 result.push(&sorted_intersections[beg]);
-                common_lines = sorted_intersections[beg]
-                    .lines
-                    .intersection(&result.first().unwrap().lines)
-                    .map(|l| *l)
-                    .collect();
             }
+            common_lines = sorted_intersections[beg]
+                .lines
+                .intersection(&result.first().unwrap().lines)
+                .map(|l| *l)
+                .collect();
         } else {
             common_lines = common_lines
                 .intersection(&result[1].lines)
@@ -952,5 +952,53 @@ mod tests {
         assert_eq!(maximized[1].point, Point::new(1.0, 1.0));
         assert_eq!(maximized[2].point, Point::new(1.0, 0.0));
         assert_eq!(maximized[3].point, Point::new(0.0, 0.0));
+    }
+
+    #[test]
+    fn test_maximise_line_full_stack_shaded_geometry() {
+        // Simple case - in a square, that's just the corners
+        let lines = vec![
+            Line::from_coords(0.0, 0.0, 0.0, 1.0),
+            Line::from_coords(0.0, 1.0, 1.0, 1.0),
+            Line::from_coords(1.0, 1.0, 1.0, 0.0),
+            Line::from_coords(1.0, 0.0, 0.0, 0.0),
+            Line::from_coords(0.3, 0.4, 0.3, 0.8),
+        ];
+
+        let point = Point::new(0.5, 0.5);
+
+        let sections = closest_intersections_to_all_vertices(&point, &lines);
+
+        // for section in &sections {
+        //     println!("{:?}", section);
+        // }
+
+        let sorted_intersections = sort_intersections(&point, &sections);
+
+        // println!("Sorted:");
+        // for section in &sorted_intersections {
+        //     println!("{:?}", section);
+        // }
+
+        let collated_intersections = collate_intersections(&sorted_intersections);
+
+        println!("Collated:");
+        for section in &collated_intersections {
+            println!("{:?}", section);
+        }
+
+        let maximized = maximise_lines(&collated_intersections);
+        println!("Maximized:");
+        for section in &maximized {
+            println!("{:?}", section);
+        }
+        assert_eq!(maximized.len(), 7);
+        assert_eq!(maximized[0].point, Point::new(0.3, 0.8));
+        assert_eq!(maximized[1].point, Point::new(0.16666667555555534, 1.0));
+        assert_eq!(maximized[2].point, Point::new(1.0, 1.0));
+        assert_eq!(maximized[3].point, Point::new(1.0, 0.0));
+        assert_eq!(maximized[4].point, Point::new(0.0, 0.0));
+        assert_eq!(maximized[5].point, Point::new(0.0, 0.2499999800000001));
+        assert_eq!(maximized[6].point, Point::new(0.3, 0.4));
     }
 }
