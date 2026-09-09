@@ -8,8 +8,7 @@ use crate::rays::{
 use std::{error::Error, fmt::Display};
 
 pub struct Border {
-    pub line: Line,
-    pub is_bounded: bool,
+    pub line: Line,    pub is_bounded: bool,
 }
 
 impl Border {
