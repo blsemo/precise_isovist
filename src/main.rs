@@ -1,5 +1,6 @@
 use dxf::{Drawing, Point, entities::*};
 
+mod isovists;
 mod rays;
 
 fn main() {
@@ -27,16 +28,40 @@ fn create_test_dxf() -> Drawing {
     let mut drawing = Drawing::new();
 
     // draw a square box ((0,0)(0,1)(1,1)(1,0))
-    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(Point::new(0.0, 0.0, 0.0), Point::new(0.0,1.0, 0.0)))));
-    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(Point::new(0.0, 1.0, 0.0), Point::new(1.0,1.0, 0.0)))));
-    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(Point::new(1.0, 1.0, 0.0), Point::new(1.0,0.0, 0.0)))));
-    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(Point::new(0.0, 0.0, 0.0), Point::new(1.0,0.0, 0.0)))));
+    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(
+        Point::new(0.0, 0.0, 0.0),
+        Point::new(0.0, 1.0, 0.0),
+    ))));
+    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(
+        Point::new(0.0, 1.0, 0.0),
+        Point::new(1.0, 1.0, 0.0),
+    ))));
+    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(
+        Point::new(1.0, 1.0, 0.0),
+        Point::new(1.0, 0.0, 0.0),
+    ))));
+    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(
+        Point::new(0.0, 0.0, 0.0),
+        Point::new(1.0, 0.0, 0.0),
+    ))));
 
     // draw a small open shape for interesting isovists
-    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(Point::new(0.2, 0.2, 0.0), Point::new(0.2,0.6, 0.0)))));
-    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(Point::new(0.2, 0.6, 0.0), Point::new(0.6,0.6, 0.0)))));
-    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(Point::new(0.201, 0.2, 0.0), Point::new(0.6,0.2, 0.0)))));
-    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(Point::new(0.6, 0.55, 0.0), Point::new(0.6,0.25, 0.0)))));
+    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(
+        Point::new(0.2, 0.2, 0.0),
+        Point::new(0.2, 0.6, 0.0),
+    ))));
+    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(
+        Point::new(0.2, 0.6, 0.0),
+        Point::new(0.6, 0.6, 0.0),
+    ))));
+    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(
+        Point::new(0.201, 0.2, 0.0),
+        Point::new(0.6, 0.2, 0.0),
+    ))));
+    drawing.add_entity(Entity::new(dxf::entities::EntityType::Line(Line::new(
+        Point::new(0.6, 0.55, 0.0),
+        Point::new(0.6, 0.25, 0.0),
+    ))));
 
-    return drawing
+    return drawing;
 }
