@@ -58,30 +58,36 @@ fn main() -> Result<(), ProgError> {
 
     for e in drawing.entities() {
         println!("found entity on layer {}", e.common.layer);
-        if e.common.layer == args.plan_layer {
-            println!("Plan layer {}, taking entity", args.plan_layer);
-            match &e.specific {
-                EntityType::Line(line) => {
-                    lines.push(Line::from_dxf(e).map_err(|_| {
-                        ProgError::new(&format!("Failed to convert line {:?}", line))
-                    })?);
-                }
-                EntityType::LwPolyline(polyline) => {
-                    let mut previous: Option<&LwPolylineVertex> = None;
-                    for v in &polyline.vertices {
-                        if let Some(previous_vertex) = previous {
-                            lines.push(Line::from_coords(
-                                previous_vertex.x,
-                                previous_vertex.y,
-                                v.x,
-                                v.y,
-                            ));
-                        }
-                        previous = Some(v);
+        match &e.common.layer {
+            l if l == &args.plan_layer => {
+                println!("Plan layer {}, taking entity", l);
+                match &e.specific {
+                    EntityType::Line(line) => {
+                        lines.push(Line::from_dxf(e).map_err(|_| {
+                            ProgError::new(&format!("Failed to convert line {:?}", line))
+                        })?);
                     }
+                    EntityType::LwPolyline(polyline) => {
+                        let mut previous: Option<&LwPolylineVertex> = None;
+                        for v in &polyline.vertices {
+                            if let Some(previous_vertex) = previous {
+                                lines.push(Line::from_coords(
+                                    previous_vertex.x,
+                                    previous_vertex.y,
+                                    v.x,
+                                    v.y,
+                                ));
+                            }
+                            previous = Some(v);
+                        }
+                    }
+                    et => return Err(ProgError::new(&format!("Unsupported entity type {:?}", et))),
                 }
-                et => return Err(ProgError::new(&format!("Unsupported entity type {:?}", et))),
             }
+            l if l == &args.isovist_layer => {
+                println!("Isovist layer {}, checking entity", l)
+            }
+            _ => {}
         }
     }
 
