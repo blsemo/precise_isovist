@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -83,6 +84,15 @@ impl Hash for Line {
 impl Entity for Line {
     fn id(self: &Self) -> u32 {
         self.id
+    }
+}
+
+impl Display for Line {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!(
+            "Line ({}, {}) -> ({}, {})",
+            self.a.x, self.a.y, self.b.x, self.b.y
+        ))
     }
 }
 

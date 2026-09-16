@@ -1,4 +1,5 @@
 use std::convert::From;
+use std::fmt::Display;
 use std::{collections::HashSet, fmt::Debug};
 
 use ordered_float::OrderedFloat;
@@ -26,6 +27,15 @@ impl<'l> Intersection<'l> {
             scale_factor: self.scale_factor,
             lines,
         })
+    }
+}
+
+impl Display for Intersection<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!(
+            "Section at ({}, {}), on lines {:?}",
+            self.point.x, self.point.y, self.lines
+        ))
     }
 }
 
@@ -77,6 +87,15 @@ pub fn closest_section<'l>(ray: &Line, lines: &'l Vec<Line>) -> Option<Intersect
         }
     }
 
+    println!(
+        "Ray {} with closest intersection {}",
+        ray,
+        if let Some(s) = &intersection {
+            s.to_string()
+        } else {
+            "None".to_owned()
+        }
+    );
     return intersection;
 }
 
@@ -123,6 +142,10 @@ pub fn sort_intersections<'l>(
     }
 
     points.sort_by(|a, b| {
+        println!(
+            "Comparing points [a({}, {})] and [b({}, {})]",
+            a.point.x, a.point.y, b.point.x, b.point.y
+        );
         (b.point.y - point.y)
             .atan2(*(b.point.x - point.x))
             .partial_cmp(&(a.point.y - point.y).atan2(*(a.point.x - point.x)))
@@ -257,6 +280,23 @@ pub fn maximise_lines<'l>(
 mod tests {
     use super::*;
     use common_macros::hash_set;
+
+    #[test]
+    fn intersection_with_zero_length_line() {
+        let line = Line::from_coords(2.210849, 4.973271999999998, 2.210849, 4.973271999999998);
+        let ray = Line::from_coords(
+            1.165496706496853,
+            5.970175728696474,
+            2.210849,
+            4.973271999999998,
+        );
+        let lines = vec![line];
+
+        let intersection = closest_section(&ray, &lines);
+
+        assert!(intersection.is_some());
+        assert_eq!(intersection.unwrap().point, ray.b);
+    }
 
     #[test]
     fn merge_intersections() {
