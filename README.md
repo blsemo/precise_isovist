@@ -17,5 +17,17 @@ viewing or editing DXF files is required
 
 ## Current status
 
-Currently work in progress, all code that exists is covered by tests, but most is not hooked
-up to the main CLI yet.
+Currently, there is a simple main that can calculate isovists around points marked in a dxf
+file.
+It will read in a dxf file and expects the plan to be analysed in one layer, and the centre
+of the isoisvists in a separte layer. Both layers have to be specified on the command line.
+The program will calculate a 360 degree isovist around all points, write them to separate
+layers in the DXF file and save it again as ouput file.
+
+There is sample plan in `./test_data/gallery_isovistpoint.dxf`, with the plan on layer `0`
+and a single isovist point on layer `isovist_points`.
+
+The sample command line to run this would be 
+```
+cargo run -- -f test_data/gallery_isovistpoint.dxf -i isovist_points -p 0 -o output.dxf
+```
