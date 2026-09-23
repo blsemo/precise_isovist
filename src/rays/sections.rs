@@ -1,4 +1,5 @@
 use std::convert::From;
+use std::fmt::Display;
 use std::{collections::HashSet, fmt::Debug};
 
 use ordered_float::OrderedFloat;
@@ -29,11 +30,27 @@ impl<'l> Intersection<'l> {
     }
 }
 
+impl Display for Intersection<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!(
+            "Section at ({}, {}), on lines {:?}",
+            self.point.x, self.point.y, self.lines
+        ))
+    }
+}
+
 const EPSILON: f64 = 0.00000001;
 
 fn section_point<'l>(ray: &Line, line: &'l Line) -> Option<Intersection<'l>> {
     let d =
         (ray.b.x - ray.a.x) * (line.b.y - line.a.y) - (line.b.x - line.a.x) * (ray.b.y - ray.a.y);
+    if d == 0.0 {
+        if line.a.x == line.b.x && line.a.y == line.b.y {
+            return section_with_point(ray, &line.a, Some(line));
+        } else {
+            return handle_parallel_ray(ray, line);
+        }
+    }
     let r = ((line.b.x - line.a.x) * (ray.a.y - line.a.y)
         - (ray.a.x - line.a.x) * (line.b.y - line.a.y))
         / d;
@@ -61,6 +78,70 @@ fn section_point<'l>(ray: &Line, line: &'l Line) -> Option<Intersection<'l>> {
     });
 }
 
+fn section_with_point<'l>(
+    ray: &Line,
+    point: &Point,
+    line: Option<&'l Line>,
+) -> Option<Intersection<'l>> {
+    let x_shift = (ray.b.x - ray.a.x).into_inner();
+    let y_shift = (ray.b.y - ray.a.y).into_inner();
+    let mut lines = HashSet::<&'l Line>::new();
+    if let Some(l) = line {
+        lines.insert(l);
+    }
+    if x_shift == 0.0 {
+        if y_shift == 0.0 {
+            return None;
+        }
+        // special case  - the ray is vertical, so can't be handled as a function
+        // either the point has the same x coordinate, then check if it's on the ray,
+        // or no intersection
+        let point_dist_x = point.x.into_inner() - ray.a.x.into_inner();
+        if point_dist_x > -1.0 * EPSILON && point_dist_x < EPSILON {
+            let scale_factor = (point.y - ray.a.y).into_inner() / y_shift;
+            if 0.0 <= scale_factor && 1.0 >= scale_factor {
+                return Some(Intersection {
+                    point: point.clone(),
+                    scale_factor,
+                    lines,
+                });
+            } else {
+                return None;
+            }
+        } else {
+            return None;
+        }
+    }
+    let scale_factor = (point.x.into_inner() - ray.a.x.into_inner()) / x_shift;
+    if 0.0 <= scale_factor && 1.0 >= scale_factor {
+        let calculated_y = ray.a.y.into_inner() + y_shift * scale_factor;
+        if calculated_y - EPSILON < point.y.into_inner()
+            && calculated_y + EPSILON > point.y.into_inner()
+        {
+            return Some(Intersection {
+                point: point.clone(),
+                scale_factor,
+                lines,
+            });
+        }
+    }
+    return None;
+}
+
+fn handle_parallel_ray<'l>(ray: &Line, line: &'l Line) -> Option<Intersection<'l>> {
+    let s1 = section_with_point(ray, &line.a, Some(line));
+    let s2 = section_with_point(ray, &line.b, Some(line));
+    if let (Some(sec1), Some(sec2)) = (&s1, &s2) {
+        if sec1.scale_factor < sec2.scale_factor {
+            s1
+        } else {
+            s2
+        }
+    } else {
+        if s1.is_some() { s1 } else { s2 }
+    }
+}
+
 pub fn closest_section<'l>(ray: &Line, lines: &'l Vec<Line>) -> Option<Intersection<'l>> {
     let mut intersection: Option<Intersection> = None;
 
@@ -76,7 +157,6 @@ pub fn closest_section<'l>(ray: &Line, lines: &'l Vec<Line>) -> Option<Intersect
             }
         }
     }
-
     return intersection;
 }
 
@@ -257,6 +337,181 @@ pub fn maximise_lines<'l>(
 mod tests {
     use super::*;
     use common_macros::hash_set;
+
+    #[test]
+    fn intersections_with_points() {
+        // test case 1 slanted line
+        let ray = Line::from_coords(0.0, 0.0, 1.0, 2.0);
+
+        assert!(section_with_point(&ray, &Point::new(0.0, 1.0), None).is_none());
+        assert!(section_with_point(&ray, &Point::new(-1.0, -2.0), None).is_none());
+        assert!(section_with_point(&ray, &Point::new(2.0, 4.0), None).is_none());
+        let section1 =
+            section_with_point(&ray, &Point::new(0.5, 1.0), None).expect("Failed to find section1");
+        assert!(section1.point.x == 0.5);
+        assert!(section1.point.y == 1.0);
+        assert!(section1.scale_factor == 0.5);
+
+        // point at end of line
+        let section1a = section_with_point(&ray, &Point::new(1.0, 2.0), None)
+            .expect("Failed to find section1a");
+        assert!(section1a.point.x == 1.0);
+        assert!(section1a.point.y == 2.0);
+        assert!(section1a.scale_factor == 1.0);
+
+        // point at beginning of line
+        let section1c = section_with_point(&ray, &Point::new(0.0, 0.0), None)
+            .expect("Failed to find section1c");
+        assert!(section1c.point.x == 0.0);
+        assert!(section1c.point.y == 0.0);
+        assert!(section1c.scale_factor == 0.0);
+
+        // case 2 horizontal line
+        let hray = Line::from_coords(0.0, 0.0, 1.0, 0.0);
+        assert!(section_with_point(&hray, &Point::new(1.0, 1.0), None).is_none());
+        assert!(section_with_point(&hray, &Point::new(-1.0, 0.0), None).is_none());
+        assert!(section_with_point(&hray, &Point::new(2.0, 0.0), None).is_none());
+        let section2 = section_with_point(&hray, &Point::new(0.4, 0.0), None)
+            .expect("Failed to find section2");
+        assert!(section2.point.x == 0.4);
+        assert!(section2.point.y == 0.0);
+        assert!(section2.scale_factor == 0.4);
+
+        // case three - vertical line
+        let vray = Line::from_coords(1.0, 0.0, 1.0, 1.0);
+        assert!(section_with_point(&vray, &Point::new(0.0, 1.0), None).is_none());
+        assert!(section_with_point(&vray, &Point::new(1.0, -1.0), None).is_none());
+        assert!(section_with_point(&vray, &Point::new(1.0, 2.0), None).is_none());
+        let section3 = section_with_point(&vray, &Point::new(1.0, 0.6), None)
+            .expect("Failed to find section3");
+        assert!(section3.point.x == 1.0);
+        assert!(section3.point.y == 0.6);
+        assert!(section3.scale_factor == 0.6);
+
+        // point at end of line
+        let section3a = section_with_point(&vray, &Point::new(1.0, 1.0), None)
+            .expect("Failed to find section3a");
+        assert!(section3a.point.x == 1.0);
+        assert!(section3a.point.y == 1.0);
+        assert!(section3a.scale_factor == 1.0);
+
+        // point at beginning of line
+        let section3b = section_with_point(&vray, &Point::new(1.0, 0.0), None)
+            .expect("Failed to find section3b");
+        assert!(section3b.point.x == 1.0);
+        assert!(section3b.point.y == 0.0);
+        assert!(section3b.scale_factor == 0.0);
+
+        // test case 4 slanted line negative
+        let ray_n = Line::from_coords(0.0, 0.0, -1.0, -3.0);
+
+        assert!(section_with_point(&ray_n, &Point::new(0.0, -1.0), None).is_none());
+        assert!(section_with_point(&ray_n, &Point::new(1.0, 3.0), None).is_none());
+        assert!(section_with_point(&ray_n, &Point::new(-2.0, -6.0), None).is_none());
+        let section4 = section_with_point(&ray_n, &Point::new(-0.5, -1.5), None)
+            .expect("Failed to find section4");
+        assert!(section4.point.x == -0.5);
+        assert!(section4.point.y == -1.5);
+        assert!(section4.scale_factor == 0.5);
+
+        // point at end of line
+        let section4a = section_with_point(&ray_n, &Point::new(-1.0, -3.0), None)
+            .expect("Failed to find section4a");
+        assert!(section4a.point.x == -1.0);
+        assert!(section4a.point.y == -3.0);
+        assert!(section4a.scale_factor == 1.0);
+
+        // point at beginning of line
+        let section4c = section_with_point(&ray, &Point::new(0.0, 0.0), None)
+            .expect("Failed to find section4c");
+        assert!(section4c.point.x == 0.0);
+        assert!(section4c.point.y == 0.0);
+        assert!(section4c.scale_factor == 0.0);
+
+        // case 5 - zero length ray
+        assert!(
+            section_with_point(
+                &Line::from_coords(1.0, 2.0, 1.0, 2.0),
+                &Point::new(1.0, 2.0),
+                None
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn intersections_with_points_non_zero_root() {
+        // test case 1 slanted line
+        let ray = Line::from_coords(1.0, 1.0, 2.0, 0.0);
+
+        assert!(section_with_point(&ray, &Point::new(0.0, 1.0), None).is_none());
+        assert!(section_with_point(&ray, &Point::new(0.0, 2.0), None).is_none());
+        assert!(section_with_point(&ray, &Point::new(3.0, -1.0), None).is_none());
+        let section1 =
+            section_with_point(&ray, &Point::new(1.5, 0.5), None).expect("Failed to find section1");
+        assert!(section1.point.x == 1.5);
+        assert!(section1.point.y == 0.5);
+        assert!(section1.scale_factor == 0.5);
+    }
+
+    #[test]
+    fn intersection_with_zero_length_line() {
+        let line = Line::from_coords(2.210849, 4.973271999999998, 2.210849, 4.973271999999998);
+        let ray = Line::from_coords(
+            1.165496706496853,
+            5.970175728696474,
+            2.210849,
+            4.973271999999998,
+        );
+        let lines = vec![line];
+
+        let intersection = closest_section(&ray, &lines);
+
+        assert!(intersection.is_some());
+        assert_eq!(intersection.unwrap().point, ray.b);
+    }
+
+    #[test]
+    fn intersections_with_parallel_lines() {
+        let ray = Line::from_coords(1.0, 1.0, 2.0, 2.0);
+        let line = Line::from_coords(1.5, 1.5, 2.5, 2.5);
+
+        let section = section_point(&ray, &line).expect("Failed to find section");
+        println!("{:?}", section);
+        assert!(section.point.x.into_inner() == 1.5);
+        assert!(section.point.y.into_inner() == 1.5);
+        assert!(section.scale_factor == 0.5);
+
+        let line2 = Line::from_coords(3.0, 3.0, 1.2, 1.2);
+        let section2 = section_point(&ray, &line2).expect("Failed to find section2");
+        println!("{:?}", section2);
+        assert!(section2.point.x.into_inner() == 1.2);
+        assert!(section2.point.y.into_inner() == 1.2);
+        assert!(section2.scale_factor > 0.2 - EPSILON && section2.scale_factor < 0.2 + EPSILON);
+
+        let line3 = Line::from_coords(2.5, 2.5, 3.2, 3.2);
+        assert!(section_point(&ray, &line3).is_none());
+
+        let line4 = Line::from_coords(1.0, 2.0, 2.0, 3.0);
+        assert!(section_point(&ray, &line4).is_none());
+    }
+
+    #[test]
+    fn vertical_and_horizontal_rays() {
+        let v_ray = Line::from_coords(0.5, 1.0, 0.5, 2.0);
+        let line1 = Line::from_coords(0.0, 1.5, 1.0, 1.5);
+        let section1 = section_point(&v_ray, &line1).expect("Failed to find section1");
+        assert!(section1.point.x == 0.5);
+        assert!(section1.point.y == 1.5);
+        assert!(section1.scale_factor == 0.5);
+
+        let h_ray = Line::from_coords(1.0, 1.0, 2.0, 1.0);
+        let line2 = Line::from_coords(1.5, 1.5, 1.5, 0.0);
+        let section2 = section_point(&h_ray, &line2).expect("Failed to find section2");
+        assert!(section2.point.x == 1.5);
+        assert!(section2.point.y == 1.0);
+        assert!(section2.scale_factor == 0.5);
+    }
 
     #[test]
     fn merge_intersections() {
